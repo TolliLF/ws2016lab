@@ -14,8 +14,6 @@ Start-Transcript -Path $workdir\CreateParentDisks.log
 $StartDateTime = get-date
 Write-host	"Script started at $StartDateTime"
 
-#Temp variables
-
 ##Load Variables....
 . "$($workdir)\variables.ps1"
 
@@ -32,7 +30,7 @@ $VMName='DC'
 #############
 
 #Create Unattend for VHD 
-Function Create-UnattendFileVHD{     
+Function CreateUnattendFileVHD{     
     param (
         [parameter(Mandatory=$true)]
         [string]
@@ -98,9 +96,9 @@ Function Create-UnattendFileVHD{
     Return $unattendFile 
 }
 
-##############
-# Lets start #
-##############
+###########
+# Prereqs #
+###########
 
 #Check if Hyper-V is installed.
 Write-Host "Checking if Hyper-V is installed" -ForegroundColor Cyan
@@ -114,8 +112,57 @@ if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V).state -e
 	Exit
 }
 
+#check if VMM prereqs files are present
 
-## Test for unpacked media - detect install.wim
+if ($LabConfig.InstallSCVMM -eq "Yes"){
+    "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SCVMM\setup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe","Tools\ToolsVHD\SCVMM\ADK\Installers\Windows PE x86 x64-x86_en-us.msi","Tools\ToolsVHD\SCVMM\dotNET\microsoft-windows-netfx3-ondemand-package.cab" | ForEach-Object {
+        if(!(Test-Path -Path "$workdir\$_")){
+            Write-Host "files $_ needed for SCVMM install not found. Exitting" -ForegroundColor Red
+            Write-Host "Press any key to continue ..."
+	        $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+	        $HOST.UI.RawUI.Flushinputbuffer()
+        }
+    }    
+}
+
+if ($LabConfig.InstallSCVMM -eq "Prereqs"){
+    "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe","Tools\ToolsVHD\SCVMM\ADK\Installers\Windows PE x86 x64-x86_en-us.msi","Tools\ToolsVHD\SCVMM\dotNET\microsoft-windows-netfx3-ondemand-package.cab" | ForEach-Object {
+        if(!(Test-Path -Path "$workdir\$_")){
+            Write-Host "files $_ needed for SCVMM Prereqs install not found. Exitting" -ForegroundColor Red
+            Write-Host "Press any key to continue ..."
+            $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+            $HOST.UI.RawUI.Flushinputbuffer()
+        }
+    } 
+}
+    
+if ($LabConfig.InstallSCVMM -eq "SQL"){
+    "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe","Tools\ToolsVHD\SCVMM\dotNET\microsoft-windows-netfx3-ondemand-package.cab" | ForEach-Object {
+        if(!(Test-Path -Path "$workdir\$_")){
+            Write-Host "files $_ needed for SQL install not found. Exitting" -ForegroundColor Red
+            Write-Host "Press any key to continue ..."
+            $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+            $HOST.UI.RawUI.Flushinputbuffer()
+        }
+    }
+}    
+
+if ($LabConfig.InstallSCVMM -eq "ADK"){
+    "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\dotNET\microsoft-windows-netfx3-ondemand-package.cab" | ForEach-Object {
+        if(!(Test-Path -Path "$workdir\$_")){
+            Write-Host "files $_ needed for ADK install not found. Exitting" -ForegroundColor Red
+            Write-Host "Press any key to continue ..."
+            $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+            $HOST.UI.RawUI.Flushinputbuffer()
+        }
+    }
+}   
+
+##############
+# Lets start #
+##############
+
+## Test for unpacked media - detect install.wim for Server OS
 If (Test-Path -Path "$workdir\OSServer\Sources\install.wim"){
 	Write-Host "ISO content found under $workdir\OSServer folder" -ForegroundColor Green
 	$ServerMediaPath="$workdir\OSServer"
@@ -134,7 +181,7 @@ If (Test-Path -Path "$workdir\OSServer\Sources\install.wim"){
 		$openFile.Filter = “iso files (*.iso)|*.iso|All files (*.*)|*.*” 
 		If($openFile.ShowDialog() -eq “OK”)
 		{
-		   Write-Output  "File $openfile.name selected" -ForegroundColor Green
+		   Write-Host  "File $openfile.name selected" -ForegroundColor Green
 		} 
         if (!$openFile.FileName){
 		        Write-Host  "Iso was not selected... Exitting" -ForegroundColor Red
@@ -151,6 +198,7 @@ If (Test-Path -Path "$workdir\OSServer\Sources\install.wim"){
 	$ServerMediaPath = (Get-Volume -DiskImage $ISOServer).DriveLetter+':'
 }
 
+## Test for unpacked media - detect install.wim for Client OS
 If ($LabConfig.CreateClientParent -eq "Yes"){
 	If (Test-Path -Path "$workdir\OSClient\Sources\install.wim"){
 		Write-Host "ISO content found under $workdir\OSClient folder" -ForegroundColor Green
@@ -169,7 +217,7 @@ If ($LabConfig.CreateClientParent -eq "Yes"){
 			$openFile = New-Object System.Windows.Forms.OpenFileDialog
 			$openFile.Filter = “iso files (*.iso)|*.iso|All files (*.*)|*.*” 
 			If($openFile.ShowDialog() -eq “OK”){
-			   Write-Output  "File $openfile.name selected" -ForegroundColor Green
+			   Write-Host  "File $openfile.name selected" -ForegroundColor Green
 			} 
         if (!$openFile.FileName){
 		        Write-Host  "Iso was not selected... Exitting" -ForegroundColor Red
@@ -201,11 +249,13 @@ Write-Host "Client Packages Found" -ForegroundColor Cyan
 $ClientPackages | ForEach-Object {Write-Host $_.Name}
 }
 
-New-Item -Type Directory -Path "$workdir\ParentDisks"
-New-Item -Type Directory -Path "$workdir\Temp" -Force
-New-Item -Type Directory -Path "$workdir\Temp\mountdir"
-New-Item -Type Directory -Path "$workdir\Tools\dism"
-New-Item -Type Directory -Path "$workdir\Temp\packages"
+#######################
+# Create parent disks #
+#######################
+
+#create some folders
+'ParentDisks','Temp','Temp\mountdir','Tools\dism','Temp\packages' | ForEach-Object {
+    if (!( Test-Path "$Workdir\$_" )) { New-Item -Type Directory -Path "$workdir\$_" } }
 
 . "$workdir\tools\convert-windowsimage.ps1"
 
@@ -216,17 +266,16 @@ If ($LabConfig.CreateClientParent -eq "Yes"){
 Convert-WindowsImage -SourcePath $ClientMediaPath'\sources\install.wim' -Edition $LabConfig.ClientEdition -VHDPath $workdir'\ParentDisks\Win10_G2.vhdx' -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI
 }
 
+#copy dism tools (probably not needed, but this will make sure that dism is the newest one)
+ 
+#create some folders
+'sources\api*downlevel*.dll','sources\*provider*','sources\*dism*' | ForEach-Object {
+    Copy-Item -Path "$ServerMediaPath\$_" -Destination $workdir\Tools\dism -Force
+}
 
-#copy dism tools 
-  
-Copy-Item -Path $ServerMediaPath'\sources\api*downlevel*.dll' -Destination $workdir\Tools\dism
-Copy-Item -Path $ServerMediaPath'\sources\*provider*' -Destination $workdir\Tools\dism
-Copy-Item -Path $ServerMediaPath'\sources\*dism*' -Destination $workdir\Tools\dism
-Copy-Item -Path $ServerMediaPath'\nanoserver\packages\*' -Destination $workdir\Temp\packages\ -Recurse 
+Copy-Item -Path $ServerMediaPath'\nanoserver\packages\*' -Destination $workdir\Temp\packages\ -Recurse -Force
 
-
-#Old way
-#Todo: use the tool for NanoServer
+#Todo: use the tool for NanoServer (this is little bit faster and transparent). The condition to test *en-us* is there because TP4 file structure was different.
 if (Test-Path -Path $ServerMediaPath'\nanoserver\Packages\en-us\*en-us*'){
 	#vnext version
 	Convert-WindowsImage -SourcePath $ServerMediaPath'\Nanoserver\NanoServer.wim' -edition 2 -VHDPath $workdir'\ParentDisks\Win2016Nano_G2.vhdx' -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI
@@ -252,7 +301,7 @@ if (Test-Path -Path $ServerMediaPath'\nanoserver\Packages\en-us\*en-us*'){
 	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-SCVMM-Compute-Package_en-us.cab /Image:$workdir\Temp\mountdir
 	&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
 
-	#do some servicing
+	#do some servicing (adding CABs and MSUs)
 	'Win2016Core_G2.vhdx','Win2016Nano_G2.vhdx','Win2016NanoHV_G2.vhdx' | ForEach-Object {
 		&"$workdir\Tools\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\$_ /Index:1 /MountDir:$workdir\Temp\mountdir
 		$ServerPackages | ForEach-Object {
@@ -281,10 +330,10 @@ if (Test-Path -Path $ServerMediaPath'\nanoserver\Packages\en-us\*en-us*'){
 	Exit
 }
 
-#create Tools VHDX
+#create Tools VHDX from .\tools\ToolsVHD
 
-$vhd=New-VHD -Path "$workdir\ParentDisks\tools.vhdx" -SizeBytes 30GB -Dynamic
-$VHDMount = Mount-VHD $vhd.Path -Passthru
+$toolsVHD=New-VHD -Path "$workdir\ParentDisks\tools.vhdx" -SizeBytes 30GB -Dynamic
+$VHDMount = Mount-VHD $toolsVHD.Path -Passthru
 
 $vhddisk = $VHDMount| get-disk 
 $vhddiskpart = $vhddisk | Initialize-Disk -PartitionStyle GPT -PassThru | New-Partition -UseMaximumSize -AssignDriveLetter |Format-Volume -FileSystem NTFS -AllocationUnitSize 8kb -NewFileSystemLabel ToolsDisk 
@@ -319,15 +368,13 @@ $VMPath=$Workdir+'\LAB\'
 #Create Parent VHD
 Convert-WindowsImage -SourcePath $ServerMediaPath'\sources\install.wim' -Edition $LABConfig.DCEdition -VHDPath $vhdpath -SizeBytes 60GB -VHDFormat VHDX -DiskLayout UEFI
 
-#do some servicing
+#do some servicing (adding cab/msu packages)
 &"$workdir\Tools\dism\dism" /Mount-Image /ImageFile:$vhdpath /Index:1 /MountDir:$workdir\Temp\mountdir
 $ServerPackages | ForEach-Object {
 	$packagepath=$_.FullName
 	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$packagepath /Image:$workdir\Temp\mountdir
 }
 &"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
-
-
 
 #If the switch does not already exist, then create a switch with the name $SwitchName
 if (-not [bool](Get-VMSwitch -Name $Switchname -ErrorAction SilentlyContinue)) {New-VMSwitch -SwitchType Private -Name $Switchname}
@@ -338,7 +385,7 @@ $DC | Set-VMMemory -DynamicMemoryEnabled $true
 if ($LabConfig.Secureboot -eq 'Off') {$DC | Set-VMFirmware -EnableSecureBoot Off}
 
 #Apply Unattend
-$unattendfile=Create-UnattendFileVHD -Computername $VMName -AdminPassword $AdminPassword -path "$workdir\temp\"
+$unattendfile=CreateUnattendFileVHD -Computername $VMName -AdminPassword $AdminPassword -path "$workdir\temp\"
 New-item -type directory -Path $Workdir\Temp\mountdir -force
 &"$workdir\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$Workdir\Temp\mountdir
 &"$workdir\Tools\dism\dism" /image:$Workdir\Temp\mountdir /Apply-Unattend:$unattendfile
@@ -346,9 +393,7 @@ New-item -type directory -Path "$Workdir\Temp\mountdir\Windows\Panther" -force
 Copy-Item -Path $unattendfile -Destination "$Workdir\Temp\mountdir\Windows\Panther\unattend.xml" -force
 Copy-Item -Path "$workdir\tools\DSC\*" -Destination "$Workdir\Temp\mountdir\Program Files\WindowsPowerShell\Modules\" -Recurse -force
 
-
-#####
-#Here goes Configuration and creation of pending.mof
+#Here goes Configuration and creation of pending.mof (DSC)
 
 $username = "corp\Administrator"
 $password = $AdminPassword
@@ -670,20 +715,68 @@ $test
 
 Invoke-Command -VMGuid $DC.id -ScriptBlock {redircmp 'OU=Workshop,DC=corp,DC=contoso,DC=com'} -Credential $cred -ErrorAction SilentlyContinue
 
+#install SCVMM or its prereqs if specified so
+if (($LabConfig.InstallSCVMM -eq "Yes") -or ($LabConfig.InstallSCVMM -eq "SQL") -or ($LabConfig.InstallSCVMM -eq "ADK") -or ($LabConfig.InstallSCVMM -eq "Prereqs")){
+    $DC | Add-VMHardDiskDrive -Path $toolsVHD.Path
+}
+
+if ($LabConfig.InstallSCVMM -eq "Yes"){
+    Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+        d:\scvmm\1_SQL_Install.ps1
+        d:\scvmm\2_ADK_Install.ps1  
+        Restart-Computer    
+    }
+    Start-Sleep 10
+    Write-Host "Waiting for DC to restart" -ForegroundColor cyan
+    do{
+    $test=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {Get-ADComputer -Filter * -SearchBase 'DC=Corp,DC=Contoso,DC=Com' -ErrorAction SilentlyContinue} -ErrorAction SilentlyContinue
+    Start-Sleep 5
+    }
+    until ($test -ne $Null)
+    Write-Host "DC is up." -ForegroundColor Green
+    Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+        d:\scvmm\3_SCVMM_Install.ps1    
+    }
+}
+
+if ($LabConfig.InstallSCVMM -eq "SQL"){
+    Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+        d:\scvmm\1_SQL_Install.ps1  
+    }
+}
+
+if ($LabConfig.InstallSCVMM -eq "ADK"){
+    Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+        d:\scvmm\2_ADK_Install.ps1
+    }       
+}
+
+if ($LabConfig.InstallSCVMM -eq "Prereqs"){
+    Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+        d:\scvmm\1_SQL_Install.ps1
+        d:\scvmm\2_ADK_Install.ps1
+    }  
+}
+
+if (($LabConfig.InstallSCVMM -eq "Yes") -or ($LabConfig.InstallSCVMM -eq "SQL") -or ($LabConfig.InstallSCVMM -eq "ADK") -or ($LabConfig.InstallSCVMM -eq "Prereqs")){
+    $DC | Get-VMHardDiskDrive | where path -eq $toolsVHD.Path | Remove-VMHardDiskDrive
+}
+
 $DC | Get-VMNetworkAdapter | Disconnect-VMNetworkAdapter
 $DC | Stop-VM
 
+##################
+# cleanup&finish #
+##################
 
-#cleanup
-
-###Backup VM Configuration ###
+#Backup DC VM Configuration
 Copy-Item -Path "$vmpath\$VMNAME\Virtual Machines\" -Destination "$vmpath\$VMNAME\Virtual Machines_Bak\" -Recurse
 $DC | Remove-VM -Force
 Remove-Item -Path "$vmpath\$VMNAME\Virtual Machines\" -Recurse
 Rename-Item -Path "$vmpath\$VMNAME\Virtual Machines_Bak\" -NewName 'Virtual Machines'
 Compress-Archive -Path "$vmpath\$VMNAME\Virtual Machines\" -DestinationPath "$vmpath\$VMNAME\Virtual Machines.zip"
 
-###Cleanup The rest ###
+#Cleanup The rest ###
 Remove-VMSwitch -Name $Switchname -Force -ErrorAction SilentlyContinue
 if ($ISOServer -ne $Null){
 $ISOServer | Dismount-DiskImage

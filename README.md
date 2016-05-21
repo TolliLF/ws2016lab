@@ -8,15 +8,20 @@
 #Changelog
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 * 1.5.2016 - Added win2012R2 support, optimized answer files 
 =======
+=======
+* 17.5.2016 - Added SCVMM automation - if you specify labconfig parameter to install SCVMM and put all install files into toolsVHD folder, SCVMM will be automatically installed during 2_CreateParentDisks
+* 15.5.2016 - Simplified variables.ps1, SCVMM install scripts added
+>>>>>>> Microsoft/master
 * 3.5.2016 - Scripts will exit if prefix is empty. Also will exit if iso was not selected in prompt.
 * 1.5.2016 - Added win2012R2 support, optimized answer files, moved dism to tools, all scripts use dism from tools (copied from iso)
 >>>>>>> tollilf/master
 
 #Usage (more info in [wiki](https://github.com/Microsoft/ws2016lab/wiki) )
 
- [Download](https://github.com/Microsoft/ws2016lab/blob/master/scripts.zip?raw=true) scripts and [Windows Server 2016 TP5](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-technical-preview) 
+ [Download](https://github.com/Microsoft/ws2016lab/raw/master/scripts.zip) scripts and [Windows Server 2016 TP5](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-technical-preview) 
  
  > Note: please [download](http://catalog.update.microsoft.com/v7/site/Search.aspx?q=KB3157663) Cumulative Update for Windows Server 2016 Technical Preview 5 KB3157663 and add it to OSServer\Packages after 1_Prereq.ps1
  
